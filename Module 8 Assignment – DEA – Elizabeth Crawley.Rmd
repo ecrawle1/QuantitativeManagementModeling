@@ -1,0 +1,227 @@
+---
+title: 'Module 8: Hope Valley Health Care Association'
+author: "ElizabethCrawley"
+date: "2026-10-27"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+***
+
+## Hope Valley Health Care Association
+
+The Hope Valley Health Care Association owns and operates six nursing homes in adjoining states. 
+
+An evaluation of their efficiency has been undertaken using two inputs and two outputs.
+
+The inputs are staffing labor (measured in average hours per day) and the cost of supplies (in thousands of dollars per day). 
+
+The outputs are the number of patient-days reimbursed by third-party sources and the number of patient-days reimbursed privately. A summary of performance data is shown in the table below.
+
+***
+
+## Load the libraries
+Install the Benchmarking library.
+```{r}
+#install.packages("Benchmarking")
+library(Benchmarking)
+```
+## 1. DEA analysis
+
+## Enter the data
+Each row represents one facility. The first input column contains staffing hours, and the second contains supplies cost.
+
+The first output column contains reimbursed patient-days, and the second contains privately paid patient-days.
+
+```{r}
+x <- matrix(
+  c(
+    150, 400, 320, 520, 350, 320,
+    0.2, 0.7, 1.2, 2.0, 1.2, 0.7
+  ),
+  ncol = 2
+)
+
+y <- matrix(
+  c(
+    14000, 14000, 42000, 28000, 19000, 14000,
+    3500, 21000, 10500, 42000, 25000, 15000
+  ),
+  ncol = 2
+)
+
+colnames(x) <- c("Staff Hours", "Supplies")
+colnames(y) <- c("Reimbursed Patient-Days", "Private Patient-Days")
+
+rownames(x) <- c(
+  "Facility 1", "Facility 2", "Facility 3",
+  "Facility 4", "Facility 5", "Facility 6"
+)
+
+rownames(y) <- rownames(x)
+
+x
+y
+```
+***
+## DEA model formulation
+
+This analysis uses input-oriented DEA. For each facility, the model minimizes the proportion of its current staffing and supplies needed to maintain its observed patient-days. The benchmark must produce at least as many patient-days in each output category.
+
+The lambda weights determine which facilities make up the benchmark.
+Their restrictions depend on the model:
+
+| Model | Lambda restrictions |
+|:------|:--------------------|
+| FDH | Each lambda is 0 or 1, and their sum equals 1 |
+| CRS | Nonnegative lambdas with no sum restriction |
+| VRS | Nonnegative lambdas whose sum equals 1 |
+| IRS | Nonnegative lambdas whose sum is at least 1 |
+| DRS | Nonnegative lambdas whose sum is at most 1 |
+| FRH | Nonnegative integer lambdas with no sum restriction |
+
+A score below 1 indicates that proportional input reductions are possible. A score of 1 indicates that the model found no proportional input reduction.
+
+***
+The following sections show each model's efficiency scores, peers, and lambda weights, addressing Questions 1 and 2.
+
+## FDH: Free Disposability Hull
+
+FDH compares facilities against individual observed facilities without assuming convexity.
+
+```{r}
+e_fdh <- dea(x, y, RTS = "fdh")
+e_fdh
+
+peers(e_fdh)
+
+lambda(e_fdh, KEEPREF = TRUE)
+```
+
+***
+
+## CRS: Constant Returns to Scale
+
+CRS allows convex combinations and proportional scaling up or down.
+
+```{r}
+e_crs <- dea(x, y, RTS = "crs")
+e_crs
+
+peers(e_crs)
+
+lambda(e_crs, KEEPREF = TRUE)
+```
+
+***
+
+## VRS: Variable Returns to Scale
+
+VRS allows convex combinations of facilities, with lambdas that
+sum to 1.
+
+```{r}
+e_vrs <- dea(x, y, RTS = "vrs")
+e_vrs
+
+peers(e_vrs)
+
+lambda(e_vrs, KEEPREF = TRUE)
+```
+
+***
+
+## IRS: Increasing Returns to Scale
+
+IRS allows convex combinations and scaling up. The lambdas must
+sum to at least 1.
+
+```{r}
+e_irs <- dea(x, y, RTS = "irs")
+e_irs
+
+peers(e_irs)
+
+lambda(e_irs, KEEPREF = TRUE)
+```
+
+***
+
+## DRS: Decreasing Returns to Scale
+
+DRS allows convex combinations and scaling down. The lambdas must
+sum to at most 1.
+
+```{r}
+e_drs <- dea(x, y, RTS = "drs")
+e_drs
+
+peers(e_drs)
+
+lambda(e_drs, KEEPREF = TRUE)
+```
+
+***
+
+## FRH: Free Replicability Hull
+
+FRH allows addition and whole-number replication of observed
+production plans. In Benchmarking, this model uses RTS = "add".
+
+```{r}
+e_frh <- dea(x, y, RTS = "add")
+e_frh
+
+peers(e_frh)
+
+lambda(e_frh, KEEPREF = TRUE)
+```
+
+***
+
+## 3. Results summary
+
+The following table compares the efficiency scores under all six
+assumptions.
+
+```{r}
+efficiency_summary <- data.frame(
+  Facility = rownames(x),
+  FDH = eff(e_fdh),
+  CRS = eff(e_crs),
+  VRS = eff(e_vrs),
+  IRS = eff(e_irs),
+  DRS = eff(e_drs),
+  FRH = eff(e_frh)
+)
+
+knitr::kable(
+  efficiency_summary,
+  digits = 6,
+  row.names = FALSE
+)
+```
+
+***
+
+## 4. Compare and contrast the results
+
+Facilities 1 through 4 have an efficiency score of 1 under all six models. Facilities 5 and 6 have different results depending on the assumptions used.
+
+Under FDH and FRH, all six facilities have a score of 1. Under VRS and IRS, Facility 5 still has a score of 1, while Facility 6 has a score of approximately 0.8963.
+
+CRS and DRS give the lowest scores. Facility 5 has a score of approximately 0.9775, and Facility 6 has a score of approximately 0.8675. Facility 6 therefore has the greatest potential for proportional input reduction.
+
+The peer groups also change. Under CRS and DRS, Facilities 5 and 6 both use Facilities 1, 2, and 4 as peers. Under VRS and IRS, Facility 6 uses Facilities 1, 2, and 5.
+
+For this dataset, CRS and DRS produce the same results, as do VRS and IRS. The comparison shows that allowing different combinations and scaling of facilities can change the efficiency scores.
+***
+
+## References
+
+Bogetoft, P., & Otto, L. (2011). *Benchmarking with DEA, SFA, and R*. Springer. Chapter 4. https://doi.org/10.1007/978-1-4419-7961-2
+
+BA 64018. Module 8 DEA lecture slides, transcripts, and example R code.
