@@ -1,0 +1,99 @@
+---
+title: "Assignment 9 - Goal Programming"
+author: "ElizabethCrawley"
+date: "2026-11-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+## Question 1: Define the Variables and Goals
+
+Let x1, x2, and x3 represent the production rates for Products 1, 2, and 3.
+
+The total discounted profit is:
+
+$$P = 20x_1 + 15x_2 + 25x_3$$
+
+The employment goal is 50 (hundreds of employees). The variables y1p and y1m represent the amounts above and below this goal.
+
+$$6x_1 + 4x_2 + 5x_3 - y_{1p} + y_{1m} = 50$$
+
+The earnings goal is at least $75 million. The variables y2p and y2m represent the amounts above and below this goal.
+
+$$8x_1 + 7x_2 + 5x_3 - y_{2p} + y_{2m} = 75$$
+
+## Question 2: Objective Function
+
+Management wants to maximize total profit while minimizing changes in employment and any decrease in next year's earnings.
+
+$$Z = P - 6C - 3D$$
+
+Since employment changes in either direction are penalized, C = y1p + y1m. Only earnings below the target are penalized, so D = y2m.
+
+Substituting these expressions gives:
+
+$$\text{Maximize } Z = 20x_1 + 15x_2 + 25x_3 - 6y_{1p} - 6y_{1m} - 3y_{2m}$$
+
+All variables are nonnegative.
+
+## Question 3: Solve the Model
+
+The linear programming model is solved in R using lpSolveAPI and the accompanying emax.lp file.
+
+```{r}
+library(lpSolveAPI)
+
+gp <- read.lp("C:/Users/ecrawle1/OneDrive - Kent State University/Desktop/MS Business Analytics/64018 Quantitative Management Modeling F26/Module 9/emax.lp")
+
+gp
+```
+
+```{r}
+solve(gp)
+get.objective(gp)
+get.variables(gp)
+```
+
+The `.lp` file declares the variables in the objective in this order: `x1`, `x2`, `x3`, `y1p`, `y1m`, `y2m`; `y2p` appears in the earnings constraint. The `.lp` file contains seven variables. The solver displays them in the order `x1`, `x2`, `x3`, `y1p`, `y1m`, `y2m`, and `y2p`. The following code assigns these names to the results so they are easier to interpret.
+
+```{r}
+solution <- setNames(
+  get.variables(gp),
+  c("x1", "x2", "x3", "y1p", "y1m", "y2m", "y2p")
+)
+
+solution
+```
+
+### Findings
+
+The optimal production rates are \(x_1=0\), \(x_2=0\), and \(x_3=15\). The total discounted profit is:
+
+\[
+P=20(0)+15(0)+25(15)=375
+\]
+
+The employment level is:
+
+\[
+6(0)+4(0)+5(15)=75
+\]
+
+This represents 7,500 employees, which is 2,500 above the goal of 5,000. The employment deviation is 25 (hundreds of employees).
+
+Next year's earnings are:
+
+\[
+8(0)+7(0)+5(15)=75
+\]
+
+The earnings goal is met, so there is no earnings-shortfall penalty. The objective value is:
+
+\[
+Z=375-6(25)-3(0)=225
+\]
+
+**Conclusion:** The model recommends producing only Product 3 at a rate of 15. This gives the highest objective value of 225. The solution meets the earnings goal but increases employment above the target. The model accepts this employment penalty because the additional profit makes the overall objective value higher.
