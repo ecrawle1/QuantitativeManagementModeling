@@ -1,0 +1,95 @@
+---
+title: 'Module 11: AP Shipping Service Solver Project'
+author: "ElizabethCrawley"
+date: "2026-11-19"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Problem
+
+The manager of the AP hub in Cleveland is concerned about labor costs, and is interested in determining the most effective way to schedule workers. 
+
+The hub operates seven days a week, and the number of packages it handles varies from one day to another.
+
+Package handlers at AP are guaranteed a five-day work week with two consecutive days off. The base wage for the handlers is 750 dollars per week. Workers working on Saturday or Sunday receive an additional 25 dollars per day.
+
+The manager wants to keep the total wage expenses as low as possible while ensuring that there are sufficient number of workers available each day. Formulate and solve the problem. What was the total cost? How many workers are available each day?
+
+## Model - Formulate and Solve
+
+Let `x1` through `x7` represent the number of workers assigned to each shift.
+Each shift has a different pair of consecutive days off, and workers must be non-negative integers. The objective is to minimize weekly wages:
+
+\[
+\min Z = 775x_1 + 800x_2 + 800x_3 + 800x_4 + 800x_5 + 775x_6 + 750x_7.
+\]
+
+The `.lp` file contains the seven daily coverage constraints and integer restrictions.
+For example, employees on Shifts 1 and 7 have Sunday off, so the Sunday constraint is \(x_2+x_3+x_4+x_5+x_6 \geq 18\).
+
+```{r}
+library(lpSolveAPI)
+
+model <- read.lp("C:/Users/ecrawle1/OneDrive - Kent State University/Desktop/MS Business Analytics/64018 Quantitative Management Modeling F26/Module 11/AP_Shipping_Service.lp")
+
+status <- solve(model)
+
+workers <- round(get.variables(model))
+names(workers) <- paste0("x", 1:7)
+weekly_cost <- get.objective(model)
+
+weekly_cost
+workers
+```
+
+## Shift assignments
+
+```{r}
+days_off <- c("Sunday, Monday", "Monday, Tuesday", "Tuesday, Wednesday",
+              "Wednesday, Thursday", "Thursday, Friday", "Friday, Saturday",
+              "Saturday, Sunday")
+wage <- c(775, 800, 800, 800, 800, 775, 750)
+
+shift_results <- data.frame(
+  Shift = 1:7,
+  Days_Off = days_off,
+  Workers = as.integer(workers),
+  Weekly_Wage = wage,
+  Shift_Cost = as.integer(workers) * wage
+)
+knitr::kable(shift_results)
+cat("Total workers:", sum(workers), "\n")
+cat("Total weekly wage expense: $", format(weekly_cost, big.mark = ",", trim = TRUE), "\n", sep = "")
+```
+
+## Daily staffing check
+
+A `1` indicates that a worker on that shift is available that day, and a `0` indicates one of the employee's two days off.
+
+```{r}
+days <- c("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")
+required <- c(18, 27, 22, 26, 25, 21, 19)
+off_pairs <- list(c(1, 2), c(2, 3), c(3, 4), c(4, 5), c(5, 6), c(6, 7), c(7, 1))
+
+availability <- sapply(off_pairs, function(off) as.integer(!(1:7 %in% off)))
+colnames(availability) <- paste0("Shift", 1:7)
+rownames(availability) <- days
+
+available <- as.vector(availability %*% workers)
+daily_results <- data.frame(
+  Day = days,
+  Required = required,
+  Available = available,
+  Extra = available - required
+)
+daily_results
+```
+
+## Findings
+
+The minimum weekly wage cost is **$25,675** for **33 workers**. All daily worker requirements are met. Staffing exceeds the requirement on some days, which is allowed by the problem.
+
+This is an **integer programming** model because the number of employees assigned to a shift must be a whole number and each shift can have more than one employee. It is not a binary model.
